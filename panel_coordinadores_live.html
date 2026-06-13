@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Coordinadores – Amazonas</title>
+<style>
+  :root {
+    --bg:#f4f6fa;--card:#fff;--border:#dde3ed;--text:#1a2233;
+    --muted:#6b7a99;--green:#2a9d6f;--amber:#e07b39;--red:#c0392b;
+    --blue:#3b6ea5;--purple:#7b5ea7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+
+  /* LOADING */
+  #loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a2233,#2d3f5e);flex-direction:column;gap:16px;}
+  .spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #loading-screen p{color:rgba(255,255,255,.7);font-size:14px;}
+
+  /* LOGIN */
+  #login-screen{display:none;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a2233,#2d3f5e);}
+  .login-box{background:#fff;border-radius:16px;padding:40px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .login-box h1{font-size:22px;margin-bottom:6px;}
+  .login-box p{color:var(--muted);margin-bottom:28px;font-size:13px;}
+  .login-box select{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:#fff;cursor:pointer;}
+  .login-box select:focus{outline:none;border-color:var(--blue);}
+  .btn-login{width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;}
+  .btn-login:hover{background:#2d5a8e;}
+  .last-update{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;}
+
+  /* APP */
+  #app{display:none;}
+  header{background:#1a2233;color:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  header h1{font-size:16px;font-weight:600;}
+  .header-right{display:flex;align-items:center;gap:14px;}
+  .coordi-badge{font-size:12px;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px;}
+  .btn-logout{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;}
+  .btn-logout:hover{background:rgba(255,255,255,.1);}
+
+  nav.tabs{background:#fff;border-bottom:2px solid var(--border);padding:0 24px;display:flex;overflow-x:auto;}
+  nav.tabs button{padding:14px 18px;background:none;border:none;border-bottom:3px solid transparent;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;margin-bottom:-2px;transition:all .2s;}
+  nav.tabs button.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600;}
+  nav.tabs button:hover:not(.active){color:var(--text);}
+
+  .tab-content{display:none;padding:24px;max-width:1200px;margin:0 auto;}
+  .tab-content.active{display:block;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden;}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .card-header h2{font-size:15px;font-weight:600;}
+  .card-body{padding:20px;}
+
+  .stat-row{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+  .stat-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;min-width:120px;flex:1;}
+  .stat-box .val{font-size:26px;font-weight:700;line-height:1;margin-bottom:4px;}
+  .stat-box .lbl{font-size:12px;color:var(--muted);}
+  .stat-box.green .val{color:var(--green);}
+  .stat-box.amber .val{color:var(--amber);}
+  .stat-box.red .val{color:var(--red);}
+  .stat-box.blue .val{color:var(--blue);}
+
+  .prog-bar-wrap{margin:10px 0;}
+  .prog-bar-wrap .label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .prog-bar{height:8px;background:#e8ecf4;border-radius:4px;overflow:hidden;}
+  .prog-bar-fill{height:100%;border-radius:4px;}
+  .fill-green{background:var(--green);}.fill-amber{background:var(--amber);}.fill-red{background:var(--red);}.fill-blue{background:var(--blue);}
+
+  .tbl-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{background:#f0f3fa;padding:9px 12px;text-align:left;font-weight:600;color:#3a4a6b;border-bottom:2px solid var(--border);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
+  td{padding:8px 12px;border-bottom:1px solid #eef1f8;vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:#f8f9fd;}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+  .badge-green{background:#d4f4e8;color:#1a6e4b;}
+  .badge-amber{background:#fdecd5;color:#944d15;}
+  .badge-red{background:#fce4e1;color:#922b21;}
+  .badge-blue{background:#dbeafe;color:#1e40af;}
+  .badge-gray{background:#edf0f7;color:#4a5568;}
+
+  .enc-card{border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .enc-header{padding:13px 16px;background:#f8f9fd;display:flex;align-items:center;gap:12px;cursor:pointer;}
+  .enc-header:hover{background:#f0f3fa;}
+  .enc-title{font-weight:600;font-size:13px;flex:1;}
+  .enc-toggle{color:var(--muted);transition:transform .2s;font-size:14px;}
+  .enc-toggle.open{transform:rotate(180deg);}
+  .enc-body{display:none;padding:16px;border-top:1px solid var(--border);}
+  .enc-body.open{display:block;}
+  .pend-list p{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;margin-top:10px;}
+  .pend-list ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px;}
+  .pend-list ul li{background:#fce4e1;color:#922b21;border-radius:6px;padding:3px 10px;font-size:12px;}
+
+  .ev-row{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+  .ev-header{padding:10px 14px;background:#f8f9fd;display:flex;align-items:center;gap:10px;cursor:pointer;flex-wrap:wrap;}
+  .ev-header:hover{background:#f0f3fa;}
+  .ev-name{font-weight:600;flex:1;font-size:13px;min-width:120px;}
+  .ev-body{display:none;padding:12px 14px;border-top:1px solid var(--border);}
+  .ev-body.open{display:block;}
+  .cursos-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;}
+
+  .part-card{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
+  .part-header{padding:10px 14px;background:#f8f9fd;display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .part-header:hover{background:#f0f3fa;}
+  .part-name{font-weight:600;flex:1;font-size:13px;}
+  .part-body{display:none;padding:12px 14px;border-top:1px solid var(--border);}
+  .part-body.open{display:block;}
+  .dom-row{margin-bottom:10px;}
+  .dom-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+  .comp-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .comp-pill{padding:3px 10px;border-radius:10px;font-size:12px;}
+  .pill-green{background:#d4f4e8;color:#1a6e4b;}
+  .pill-amber{background:#fdecd5;color:#944d15;}
+  .pill-red{background:#fce4e1;color:#922b21;}
+
+  .prog-banner{display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;}
+  .section-title{font-size:17px;font-weight:700;margin-bottom:16px;color:#1a2233;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .section-title .icon{font-size:20px;}
+
+  .search-wrap{margin-bottom:14px;}
+  .search-wrap input{width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:8px;font-size:13px;}
+  .search-wrap input:focus{outline:none;border-color:var(--blue);}
+
+  .no-data{text-align:center;padding:32px;color:var(--muted);}
+  .fechas-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .fechas-table th{background:#f0f3fa;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#3a4a6b;font-weight:600;border-bottom:2px solid var(--border);}
+  .fechas-table td{padding:9px 12px;border-bottom:1px solid #eef1f8;}
+  .fechas-table tr:last-child td{border-bottom:none;}
+
+  /* ALCANCE FIELD WARNINGS */
+  .cell-missing{background:#fff3cd;color:#856404;border-radius:4px;padding:1px 6px;font-size:12px;}
+
+  /* EQUIPO SUMMARY */
+  .summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;margin-bottom:24px;}
+  .summary-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .summary-card-header{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+  .summary-card-header h3{font-size:14px;font-weight:700;flex:1;}
+  .summary-card-body{padding:14px 18px;}
+  .metric-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f3fa;}
+  .metric-row:last-child{border-bottom:none;}
+  .metric-label{font-size:13px;color:var(--muted);}
+  .metric-val{font-weight:700;font-size:13px;}
+  .metric-bar{height:6px;background:#e8ecf4;border-radius:3px;overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:8px;}
+  .metric-bar-fill{height:100%;border-radius:3px;}
+
+  /* ALERT CELLS */
+  td.warn{background:#fffbea;}
+  td.ok{background:#f0fdf6;}
+
+  @media(max-width:600px){
+    .stat-row{gap:10px;}
+    .stat-box{min-width:100px;}
+    nav.tabs button{padding:12px 10px;font-size:12px;}
+    .tab-content{padding:14px;}
+    .summary-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <p>Cargando datos desde Google Sheets…</p>
+</div>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1>📋 Panel de Coordinadores</h1>
+    <p>Información de seguimiento – Región Amazonas 2026</p>
+    <select id="coordi-select"><option value="">— Selecciona tu nombre —</option></select>
+    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+    <div class="last-update" id="last-update"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>📋 Panel Coordinadores · Amazonas 2026</h1>
+    <div class="header-right">
+      <span class="coordi-badge" id="header-name"></span>
+      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </header>
+  <nav class="tabs" id="main-tabs">
+    <button class="active" onclick="showTab('alcance',this)">📚 Alcance</button>
+    <button onclick="showTab('encuestas',this)">📝 Encuestas</button>
+    <button onclick="showTab('ev-est',this)">👨‍🎓 Ev. Estudiantes</button>
+    <button onclick="showTab('ev-part',this)" id="tab-btn-evpart" style="display:none">🎯 Ev. Participantes</button>
+    <button onclick="showTab('fechas',this)">📅 Fechas</button>
+  </nav>
+  <div class="tab-content active" id="tab-alcance"></div>
+  <div class="tab-content" id="tab-encuestas"></div>
+  <div class="tab-content" id="tab-ev-est"></div>
+  <div class="tab-content" id="tab-ev-part"></div>
+  <div class="tab-content" id="tab-fechas"></div>
+</div>
+
+<script>
+const URLS = {
+  ALCANCE:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=993907812&single=true&output=csv',
+  ENCUESTAS:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=1855096289&single=true&output=csv',
+  EFECTUADO:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=997529441&single=true&output=csv',
+  PROGRAMADO:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=895853023&single=true&output=csv',
+  FECHAS_ENC:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=1902523406&single=true&output=csv',
+  EV_PART:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=409024399&single=true&output=csv',
+  FECHAS_EVPART:'https://docs.google.com/spreadsheets/d/e/2PACX-1vRO4yAdvi5kfc-3UCW5MELd7Pbs2V-KJZQ8fw4tcKP1bFLF8_vd4lJ_C_2aXBr1SWKpCVNAmR6IkYHD/pub?gid=383441339&single=true&output=csv',
+};
+
+const COORDI_PROG = {
+  'Bullón Guzmán, María Yolanda':    'PDL',
+  'PEÑA TACURE, VISEY LISBETH':      'QM',
+  'PASAPERA TUPIÑO, LUIS SAMUEL':    'PDLD',
+  'ASANGKAY ATAMAIN, BELISARIO':     'LECTOESCRITURA',
+  'REYNA SILVA, ROSA EMILIANA':      'LECTOESCRITURA',
+  'TEQUEN SANCHEZ, GABRIEL ENRIQUE': 'LECTOESCRITURA',
+  'YAUN DIAZ, MARIELA SENUG':        'LECTOESCRITURA',
+};
+
+const ENC_MAP = {
+  'Bullón Guzmán, María Yolanda':    'Bullón Guzmán, María Yolanda',
+  'PEÑA TACURE, VISEY LISBETH':      'PEÑA TACURE, VISEY LISBETH',
+  'PASAPERA TUPIÑO, LUIS SAMUEL':    'PASAPERA TUPIÑO, LUIS SAMUEL',
+  'TEQUEN SANCHEZ, GABRIEL ENRIQUE': 'GABRIEL  ENRIQUE TEQUEN SANCHEZ',
+  'ASANGKAY ATAMAIN, BELISARIO':     'BELISARIO ASANGKAY ATAMAIN',
+  'YAUN DIAZ, MARIELA SENUG':        'MARIELA YAUN DIAZ',
+  'REYNA SILVA, ROSA EMILIANA':      'ROSA EMILIANA REYNA SILVA',
+};
+
+const EFEC_MAP = {
+  'Bullón Guzmán, María Yolanda':    'BULLÓN GUZMÁN, MARÍA YOLANDA',
+  'PEÑA TACURE, VISEY LISBETH':      'PEÑA TACURE, VISEY LISBETH',
+  'ASANGKAY ATAMAIN, BELISARIO':     'BELISARIO ASANGKAY ATAMAIN',
+  'REYNA SILVA, ROSA EMILIANA':      'ROSA EMILIANA REYNA SILVA',
+  'PASAPERA TUPIÑO, LUIS SAMUEL':    null,
+  'TEQUEN SANCHEZ, GABRIEL ENRIQUE': null,
+  'YAUN DIAZ, MARIELA SENUG':        null,
+};
+
+// Coordis que NO requieren todos los campos de alcance
+const ALCANCE_EXEMPT = ['PASAPERA TUPIÑO, LUIS SAMUEL','YAUN DIAZ, MARIELA SENUG'];
+
+const ALCANCE_REQUIRED_FIELDS = ['Estatus','Tipo','Grado y sección','Cantidad de estudiantes','Socio','Centro poblado','IE','Multigrado','Cursos'];
+
+const PROG_COLORS = {PDL:'#3b6ea5',QM:'#e07b39',PDLD:'#7b5ea7',LECTOESCRITURA:'#2a9d6f'};
+
+// ── CSV parser ──────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  if (!lines.length) return [];
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCSVLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h.trim()] = (vals[idx]||'').trim(); });
+    rows.push(obj);
+  }
+  return rows;
+}
+function parseCSVLine(line) {
+  const res=[]; let cur=''; let inQ=false;
+  for (let i=0;i<line.length;i++) {
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===','&&!inQ){res.push(cur);cur='';}
+    else{cur+=c;}
+  }
+  res.push(cur); return res;
+}
+async function fetchCSV(url) {
+  // Try direct first, then fallback proxies
+  const proxies = [
+    u => u,
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  ];
+  let lastErr;
+  for (const makeUrl of proxies) {
+    try {
+      const r = await fetch(makeUrl(url));
+      if (!r.ok) continue;
+      const text = await r.text();
+      if (text.includes(',')) return parseCSV(text);
+    } catch(e) { lastErr = e; }
+  }
+  throw lastErr || new Error('No se pudo cargar datos');
+}
+
+let DB = {};
+
+async function loadAll() {
+  const keys = Object.keys(URLS);
+  const results = await Promise.all(Object.values(URLS).map(fetchCSV));
+  keys.forEach((k,i) => DB[k] = results[i]);
+
+  const coordis = [...new Set(DB.ALCANCE.map(r=>r['COORDINADOR/A']).filter(Boolean))];
+  const sel = document.getElementById('coordi-select');
+
+  // Regular coordis
+  coordis.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value=c; opt.textContent=c; sel.appendChild(opt);
+  });
+  // EQUIPO user
+  const optE = document.createElement('option');
+  optE.value='__EQUIPO__'; optE.textContent='👥 EQUIPO (Resumen general)';
+  sel.appendChild(optE);
+
+  document.getElementById('last-update').textContent='Datos actualizados: '+new Date().toLocaleString('es-PE');
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+let currentCoordi=null;
+
+function doLogin() {
+  const sel=document.getElementById('coordi-select').value;
+  if(!sel){alert('Selecciona tu nombre');return;}
+  currentCoordi=sel;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('header-name').textContent = sel==='__EQUIPO__' ? '👥 EQUIPO' : sel;
+
+  if(sel==='__EQUIPO__') {
+    renderEquipo();
+  } else {
+    renderAll(sel);
+  }
+}
+
+function doLogout() {
+  currentCoordi=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('coordi-select').value='';
+  resetTabs();
+}
+
+function resetTabs() {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-alcance').classList.add('active');
+  document.querySelectorAll('nav.tabs button').forEach((b,i)=>b.classList.toggle('active',i===0));
+}
+
+function showTab(name,btn) {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function pctColor(p){return p>=80?'fill-green':p>=50?'fill-amber':'fill-red';}
+function badgePct(p){return p>=80?'badge-green':p>=50?'badge-amber':'badge-red';}
+function progBar(pct,label='Avance'){
+  return `<div class="prog-bar-wrap">
+    <div class="label"><span>${label}</span><span>${pct}%</span></div>
+    <div class="prog-bar"><div class="prog-bar-fill ${pctColor(pct)}" style="width:${pct}%"></div></div>
+  </div>`;
+}
+function normalizeGS(gs){
+  return String(gs||'').trim().toUpperCase().replace(/\s*-\s*/g,'-').replace(/\s+/g,'');
+}
+function pillColor(v){
+  if(!v)return 'pill-red';
+  if(v.includes('4')||v.toLowerCase().includes('desarrollado'))return 'pill-green';
+  if(v.includes('3')||v.toLowerCase().includes('proceso'))return 'pill-amber';
+  return 'pill-red';
+}
+function toggleEl(bodyId,togId){
+  const el=document.getElementById(bodyId);
+  if(el) el.classList.toggle('open');
+  if(togId){const t=document.getElementById(togId);if(t)t.classList.toggle('open');}
+}
+function mini(pct){
+  const col=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
+  return `<span class="metric-bar"><span class="metric-bar-fill" style="width:${pct}%;background:${col}"></span></span>`;
+}
+
+// ── Compute metrics for one coordi (used by both coordi view and equipo) ────
+function computeMetrics(coordi) {
+  const prog = COORDI_PROG[coordi]||'PDL';
+  const alcRows = DB.ALCANCE.filter(r=>r['COORDINADOR/A']===coordi);
+  const exempt = ALCANCE_EXEMPT.includes(coordi);
+
+  // ALCANCE completeness
+  let alcTotal=alcRows.length, alcOk=0, alcMissing=[];
+  if(!exempt) {
+    alcRows.forEach(r => {
+      const missing = ALCANCE_REQUIRED_FIELDS.filter(f=>!r[f]||r[f].trim()==='');
+      if(missing.length===0) alcOk++;
+      else alcMissing.push({part:r['Participante']||'', missing});
+    });
+  } else {
+    alcOk=alcTotal; // exempt = no validation
+  }
+  const alcPct = alcTotal ? Math.round(alcOk/alcTotal*100) : 100;
+
+  // ENCUESTAS
+  const encCoordi=ENC_MAP[coordi];
+  const encRows=encCoordi?DB.ENCUESTAS.filter(r=>r['Coordi']===encCoordi):[];
+  const encTotal=encRows.length;
+  const encComp=encRows.filter(r=>r['Completado']==='Completado').length;
+  const encPct=encTotal?Math.round(encComp/encTotal*100):0;
+  // per encuesta
+  const encNombres=[...new Set(encRows.map(r=>r['Nombre de la encuesta']))];
+  const encByNombre=encNombres.map(n=>{
+    const sub=encRows.filter(r=>r['Nombre de la encuesta']===n);
+    const comp=sub.filter(r=>r['Completado']==='Completado').length;
+    const pend=sub.filter(r=>r['Completado']!=='Completado').map(r=>r['Participante']||'');
+    return{nombre:n,total:sub.length,comp,pend,pct:sub.length?Math.round(comp/sub.length*100):0};
+  });
+
+  // EV ESTUDIANTES
+  const progRows=DB.PROGRAMADO.filter(r=>r['Coordinador 2026']===coordi);
+  const efecCoordi=EFEC_MAP[coordi];
+  const efecRows=efecCoordi?DB.EFECTUADO.filter(r=>(r['coordi']||'').toUpperCase()===efecCoordi.toUpperCase()):[];
+  const efecKeys=new Set(efecRows.map(r=>{
+    const curso=(r['curso_merge']||r['area_evaluacion']||'').trim().toUpperCase();
+    const gs=normalizeGS(r['grado']&&r['seccion']?r['grado']+'-'+r['seccion']:'');
+    const part=(r['participante']||'').trim().toUpperCase();
+    return `${part}||${gs}||${curso}`;
+  }));
+  const partMap={};
+  progRows.forEach(r=>{
+    const part=(r['Participante']||'').trim();
+    const gs=(r['Grado y sección']||'').trim();
+    const gsN=normalizeGS(gs);
+    const cursoRaw=(r['Cursos a\nevaluar']||r['Cursos a evaluar']||'').trim();
+    const cursoN=cursoRaw.toUpperCase();
+    const partN=part.toUpperCase();
+    const key=`${partN}__${gsN}`;
+    if(!partMap[key]) partMap[key]={participante:part,grado_seccion:gs,estudiantes:r['Cantidad de estudiantes']||'',programados:[],efectuados:[],pendientes:[]};
+    partMap[key].programados.push(cursoRaw);
+    if(efecKeys.has(`${partN}||${gsN}||${cursoN}`)) partMap[key].efectuados.push(cursoRaw);
+    else partMap[key].pendientes.push(cursoRaw);
+  });
+  const evEstList=Object.values(partMap);
+  const evEstTotal=evEstList.length;
+  const evEstComp=evEstList.filter(p=>p.pendientes.length===0).length;
+  const evEstPct=evEstTotal?Math.round(evEstComp/evEstTotal*100):0;
+
+  // EV PARTICIPANTES (PDL only)
+  let evPartData=null;
+  if(prog==='PDL'){
+    const alcParts=new Set(alcRows.map(r=>(r['Participante']||'').trim().toUpperCase()));
+    const c1plus=DB.EV_PART.filter(r=>r['Ciclo']&&r['Ciclo']!=='Ciclo 0');
+    const relevant=c1plus.filter(r=>alcParts.has((r['participante']||'').trim().toUpperCase()));
+    const tRows=relevant.filter(r=>r['¿Completó evalaución?']==='t');
+    const compSet=new Set(tRows.map(r=>r['participante']));
+    const fOnly=new Set(relevant.filter(r=>r['¿Completó evalaución?']==='f').map(r=>r['participante']));
+    fOnly.forEach(p=>{if(compSet.has(p))fOnly.delete(p);});
+    const nComp=compSet.size;
+    const total=alcParts.size;
+    evPartData={total,completados:nComp,pendientes:total-nComp,pct:total?Math.round(nComp/total*100):0,
+      tRows,compSet,fOnly,alcParts};
+  }
+
+  return {
+    coordi, prog,
+    alcTotal, alcOk, alcPct, alcMissing, exempt, alcRows,
+    encTotal, encComp, encPct, encByNombre,
+    evEstTotal, evEstComp, evEstPct, evEstList,
+    evPartData,
+  };
+}
+
+// ── EQUIPO VIEW ──────────────────────────────────────────────────────────────
+function renderEquipo() {
+  // Setup tabs for equipo: only one "Resumen" tab
+  const nav=document.getElementById('main-tabs');
+  nav.innerHTML=`<button class="active" onclick="showTab('alcance',this)">📊 Resumen por coordinador</button>`;
+  document.querySelectorAll('.tab-content').forEach(t=>t.innerHTML='');
+  document.getElementById('tab-alcance').classList.add('active');
+  document.getElementById('tab-btn-evpart').style.display='none';
+
+  const coordis=Object.keys(COORDI_PROG);
+  const allMetrics=coordis.map(computeMetrics);
+
+  // Overall summary
+  const totalAlcRows=allMetrics.reduce((s,m)=>s+m.alcTotal,0);
+  const totalAlcOk=allMetrics.reduce((s,m)=>s+(m.exempt?m.alcTotal:m.alcOk),0);
+  const totalEncComp=allMetrics.reduce((s,m)=>s+m.encComp,0);
+  const totalEncTotal=allMetrics.reduce((s,m)=>s+m.encTotal,0);
+  const totalEvComp=allMetrics.reduce((s,m)=>s+m.evEstComp,0);
+  const totalEvTotal=allMetrics.reduce((s,m)=>s+m.evEstTotal,0);
+
+  let html=`
+  <div class="section-title"><span class="icon">📊</span> Resumen General – Todos los Coordinadores</div>
+  <div class="stat-row">
+    <div class="stat-box blue"><div class="val">${totalAlcRows}</div><div class="lbl">Registros de alcance</div></div>
+    <div class="stat-box ${totalEncTotal?'':'blue'}"><div class="val">${totalEncComp}/${totalEncTotal}</div><div class="lbl">Encuestas completadas</div></div>
+    <div class="stat-box ${totalEvTotal?'':'blue'}"><div class="val">${totalEvComp}/${totalEvTotal}</div><div class="lbl">Ev. estudiantes completas</div></div>
+  </div>
+
+  <div class="section-title" style="font-size:15px;margin-top:8px"><span class="icon">👤</span> Detalle por coordinador/a</div>
+  <div class="summary-grid">`;
+
+  allMetrics.forEach(m=>{
+    const pc=PROG_COLORS[m.prog]||'#3b6ea5';
+    const encPctDisp=m.encTotal?m.encPct:null;
+
+    // Alcance missing count
+    const missingAlcCount=m.alcMissing.reduce((s,r)=>s+r.missing.length,0);
+
+    html+=`<div class="summary-card">
+      <div class="summary-card-header" style="border-left:4px solid ${pc}">
+        <div>
+          <h3>${m.coordi}</h3>
+          <span class="prog-banner" style="background:${pc}22;color:${pc};font-size:11px;padding:2px 8px;border-radius:10px">${m.prog}</span>
+        </div>
+      </div>
+      <div class="summary-card-body">`;
+
+    // Alcance completeness
+    if(!m.exempt){
+      html+=`<div class="metric-row">
+        <span class="metric-label">📚 Alcance completo</span>
+        <span class="metric-val" style="color:${m.alcPct>=80?'var(--green)':m.alcPct>=50?'var(--amber)':'var(--red)'}">${m.alcPct}%${mini(m.alcPct)}</span>
+      </div>`;
+      if(m.alcMissing.length){
+        html+=`<div style="margin:4px 0 8px;padding:8px 10px;background:#fffbea;border-radius:6px;font-size:12px">
+          <strong style="color:#856404">⚠️ ${missingAlcCount} campo(s) vacío(s) en ${m.alcMissing.length} registro(s):</strong><br>
+          <ul style="margin-top:4px;padding-left:16px;color:#6b5a00">
+          ${m.alcMissing.slice(0,5).map(r=>`<li>${r.part||'(sin nombre)'}: ${r.missing.join(', ')}</li>`).join('')}
+          ${m.alcMissing.length>5?`<li>… y ${m.alcMissing.length-5} más</li>`:''}
+          </ul>
+        </div>`;
+      }
+    } else {
+      html+=`<div class="metric-row"><span class="metric-label">📚 Alcance</span><span class="badge badge-gray">Exento de validación</span></div>`;
+    }
+
+    // Encuestas
+    if(encPctDisp!==null){
+      html+=`<div class="metric-row">
+        <span class="metric-label">📝 Encuestas</span>
+        <span class="metric-val" style="color:${m.encPct>=80?'var(--green)':m.encPct>=50?'var(--amber)':'var(--red)'}">${m.encPct}% (${m.encComp}/${m.encTotal})${mini(m.encPct)}</span>
+      </div>`;
+      // Per encuesta breakdown
+      m.encByNombre.forEach(e=>{
+        html+=`<div style="margin:3px 0 3px 12px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nombre}">${e.nombre}</span>
+          <span class="badge ${e.pct>=80?'badge-green':e.pct>=50?'badge-amber':'badge-red'}">${e.pct}%</span>
+        </div>`;
+        if(e.pend.length){
+          html+=`<div style="margin:2px 0 6px 12px;font-size:11px;color:#922b21">Faltan: ${e.pend.join(', ')}</div>`;
+        }
+      });
+    } else {
+      html+=`<div class="metric-row"><span class="metric-label">📝 Encuestas</span><span class="badge badge-gray">Sin datos</span></div>`;
+    }
+
+    // Ev estudiantes
+    if(m.evEstTotal>0){
+      html+=`<div class="metric-row">
+        <span class="metric-label">👨‍🎓 Ev. Estudiantes</span>
+        <span class="metric-val" style="color:${m.evEstPct>=80?'var(--green)':m.evEstPct>=50?'var(--amber)':'var(--red)'}">${m.evEstPct}% (${m.evEstComp}/${m.evEstTotal})${mini(m.evEstPct)}</span>
+      </div>`;
+      const pendParts=m.evEstList.filter(p=>p.pendientes.length>0);
+      if(pendParts.length){
+        html+=`<div style="margin:2px 0 6px 12px;font-size:11px;color:#922b21">
+          Pendientes: ${pendParts.map(p=>`${p.participante} (${p.pendientes.join(', ')})`).join(' · ')}
+        </div>`;
+      }
+    } else {
+      html+=`<div class="metric-row"><span class="metric-label">👨‍🎓 Ev. Estudiantes</span><span class="badge badge-gray">Sin datos</span></div>`;
+    }
+
+    // Ev participantes (PDL only)
+    if(m.evPartData){
+      const ep=m.evPartData;
+      html+=`<div class="metric-row">
+        <span class="metric-label">🎯 Ev. Participantes</span>
+        <span class="metric-val" style="color:${ep.pct>=80?'var(--green)':ep.pct>=50?'var(--amber)':'var(--red)'}">${ep.pct}% (${ep.completados}/${ep.total})${mini(ep.pct)}</span>
+      </div>`;
+      if(ep.pendientes>0){
+        const pendNames=[...ep.fOnly].join(', ');
+        html+=`<div style="margin:2px 0 6px 12px;font-size:11px;color:#922b21">Faltan: ${pendNames}</div>`;
+      }
+    }
+
+    html+=`</div></div>`;
+  });
+
+  html+=`</div>`;
+  document.getElementById('tab-alcance').innerHTML=html;
+}
+
+// ── COORDI VIEW ──────────────────────────────────────────────────────────────
+function renderAll(coordi) {
+  // Restore full nav
+  document.getElementById('main-tabs').innerHTML=`
+    <button class="active" onclick="showTab('alcance',this)">📚 Alcance</button>
+    <button onclick="showTab('encuestas',this)">📝 Encuestas</button>
+    <button onclick="showTab('ev-est',this)">👨‍🎓 Ev. Estudiantes</button>
+    <button onclick="showTab('ev-part',this)" id="tab-btn-evpart" style="display:none">🎯 Ev. Participantes</button>
+    <button onclick="showTab('fechas',this)">📅 Fechas</button>`;
+  resetTabs();
+
+  const m=computeMetrics(coordi);
+  const pc=PROG_COLORS[m.prog]||'#3b6ea5';
+  const banner=`<span class="prog-banner" style="background:${pc}22;color:${pc}">${m.prog}</span>`;
+
+  document.getElementById('tab-btn-evpart').style.display=(m.prog==='PDL')?'inline-block':'none';
+
+  renderAlcance(m, pc, banner);
+  renderEncuestas(m, pc, banner);
+  renderEvEstudiantes(m, pc, banner);
+  if(m.prog==='PDL') renderEvParticipantes(m, pc, banner);
+  renderFechas(m.prog, pc, banner);
+}
+
+// ── ALCANCE ──────────────────────────────────────────────────────────────────
+function renderAlcance(m, pc, banner) {
+  const isBullon = m.coordi==='Bullón Guzmán, María Yolanda';
+  const extraTh = isBullon ? '<th>Año PDL</th><th>Tipo financiamiento</th>' : '';
+
+  let trs=m.alcRows.map(r=>{
+    const est=r['Estatus']||'';
+    const sb=est.toLowerCase().includes('alto')?'badge-green':est.toLowerCase().includes('medio')?'badge-amber':'badge-gray';
+    const extra=isBullon?`<td>${r['Año PDL']||''}</td><td>${r['Tipo de financiamiento']||''}</td>`:'';
+
+    const fields = m.exempt ? [] : ALCANCE_REQUIRED_FIELDS;
+    const cellClass=(field)=> (!m.exempt && (!r[field]||r[field].trim()==='')) ? 'warn' : '';
+
+    return `<tr>
+      <td><strong>${r['Participante']||''}</strong></td>
+      <td><span class="badge ${sb}">${est}</span></td>
+      <td class="${cellClass('Tipo')}">${r['Tipo']||(!m.exempt&&!r['Tipo']?'<span class="cell-missing">⚠ vacío</span>':'')}</td>
+      <td class="${cellClass('Grado y sección')}"><span class="badge badge-blue">${r['Grado y sección']||''}</span>${!m.exempt&&!r['Grado y sección']?'<span class="cell-missing">⚠ vacío</span>':''}</td>
+      <td style="text-align:center" class="${cellClass('Cantidad de estudiantes')}"><strong>${r['Cantidad de estudiantes']||''}</strong>${!m.exempt&&!r['Cantidad de estudiantes']?'<span class="cell-missing">⚠</span>':''}</td>
+      <td class="${cellClass('Socio')}">${r['Socio']||(!m.exempt&&!r['Socio']?'<span class="cell-missing">⚠ vacío</span>':'')}</td>
+      <td class="${cellClass('Centro poblado')}">${r['Centro poblado']||(!m.exempt&&!r['Centro poblado']?'<span class="cell-missing">⚠ vacío</span>':'')}</td>
+      <td class="${cellClass('IE')}">${r['IE']||(!m.exempt&&!r['IE']?'<span class="cell-missing">⚠ vacío</span>':'')}</td>
+      <td class="${cellClass('Multigrado')}">${r['Multigrado']||(!m.exempt&&!r['Multigrado']?'<span class="cell-missing">⚠ vacío</span>':'')}</td>
+      <td style="font-size:12px;max-width:180px" class="${cellClass('Cursos')}">${r['Cursos']||(!m.exempt&&!r['Cursos']?'<span class="cell-missing">⚠ vacío</span>':'')}</td>
+      ${extra}
+    </tr>`;
+  }).join('');
+
+  let warningBanner='';
+  if(!m.exempt && m.alcMissing.length){
+    warningBanner=`<div style="background:#fffbea;border:1px solid #f5c518;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px">
+      ⚠️ <strong>${m.alcMissing.length} registro(s)</strong> tienen campos incompletos (resaltados en amarillo).
+    </div>`;
+  }
+
+  document.getElementById('tab-alcance').innerHTML=`
+  <div class="section-title"><span class="icon">📚</span> Alcance de Participantes ${banner}</div>
+  ${warningBanner}
+  <div class="search-wrap"><input type="text" placeholder="Buscar participante, IE, centro poblado…" oninput="filterTable(this,'alcance-tbl')"></div>
+  <div class="card">
+    <div class="card-header"><h2>${m.alcRows.length} registros</h2>
+      ${!m.exempt?`<span class="badge ${m.alcPct>=80?'badge-green':m.alcPct>=50?'badge-amber':'badge-red'}">${m.alcPct}% completo</span>`:''}
+    </div>
+    <div class="tbl-wrap"><table id="alcance-tbl">
+      <thead><tr>
+        <th>Participante</th><th>Estatus</th><th>Tipo</th><th>Grado y sección</th>
+        <th>Estudiantes</th><th>Socio</th><th>Centro poblado</th><th>IE</th>
+        <th>Multigrado</th><th>Cursos</th>${extraTh}
+      </tr></thead>
+      <tbody>${trs}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function filterTable(inp,tblId){
+  const q=inp.value.toLowerCase();
+  document.querySelectorAll(`#${tblId} tbody tr`).forEach(tr=>{
+    tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+
+// ── ENCUESTAS ────────────────────────────────────────────────────────────────
+function renderEncuestas(m, pc, banner) {
+  let cards='';
+  m.encByNombre.forEach((e,i)=>{
+    const pendList=e.pend.map(p=>`<li>${p}</li>`).join('');
+    cards+=`<div class="enc-card">
+      <div class="enc-header" onclick="toggleEl('enc-body-${i}','enc-tog-${i}')">
+        <div class="enc-title">📋 ${e.nombre}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${badgePct(e.pct)}">${e.pct}% completado</span>
+          <span style="font-size:12px;color:var(--muted)">${e.comp}/${e.total}</span>
+          <span class="enc-toggle" id="enc-tog-${i}">▼</span>
+        </div>
+      </div>
+      <div class="enc-body" id="enc-body-${i}">
+        <div class="stat-row">
+          <div class="stat-box blue"><div class="val">${e.total}</div><div class="lbl">Total</div></div>
+          <div class="stat-box green"><div class="val">${e.comp}</div><div class="lbl">Completaron</div></div>
+          <div class="stat-box red"><div class="val">${e.pend.length}</div><div class="lbl">Pendientes</div></div>
+        </div>
+        ${progBar(e.pct)}
+        ${e.pend.length?`<div class="pend-list"><p>⚠️ Pendientes (${e.pend.length})</p><ul>${pendList}</ul></div>`
+          :'<p style="color:var(--green);font-size:13px;font-weight:600;margin-top:10px">✅ Todos completaron esta encuesta</p>'}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('tab-encuestas').innerHTML=`
+  <div class="section-title"><span class="icon">📝</span> Encuestas ${banner}</div>
+  ${cards||'<div class="no-data">No hay datos de encuestas.</div>'}`;
+}
+
+// ── EV ESTUDIANTES ────────────────────────────────────────────────────────────
+function renderEvEstudiantes(m, pc, banner) {
+  const {evEstTotal:total,evEstComp:completos,evEstPct:pct,evEstList:pList}=m;
+
+  let rows=pList.map((p,i)=>{
+    const ok=p.pendientes.length===0;
+    return `<div class="ev-row">
+      <div class="ev-header" onclick="toggleEl('evb-${i}')">
+        <span class="ev-name">${p.participante}</span>
+        <span class="badge badge-blue">${p.grado_seccion}</span>
+        <span style="font-size:12px;color:var(--muted)">${p.estudiantes} est.</span>
+        <span class="badge ${ok?'badge-green':'badge-red'}">${ok?'✅ Completo':'⚠️ '+p.pendientes.length+' pendiente(s)'}</span>
+        <span style="color:var(--muted)">▼</span>
+      </div>
+      <div class="ev-body" id="evb-${i}">
+        <div style="display:flex;gap:20px;flex-wrap:wrap">
+          <div><p style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Programados</p>
+            <div class="cursos-row">${p.programados.map(c=>`<span class="badge badge-gray">${c}</span>`).join('')}</div></div>
+          ${p.efectuados.length?`<div><p style="font-size:11px;font-weight:600;color:#1a6e4b;text-transform:uppercase;margin-bottom:5px">Efectuados</p>
+            <div class="cursos-row">${p.efectuados.map(c=>`<span class="badge badge-green">${c}</span>`).join('')}</div></div>`:''}
+          ${p.pendientes.length?`<div><p style="font-size:11px;font-weight:600;color:#922b21;text-transform:uppercase;margin-bottom:5px">Pendientes</p>
+            <div class="cursos-row">${p.pendientes.map(c=>`<span class="badge badge-red">${c}</span>`).join('')}</div></div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('tab-ev-est').innerHTML=`
+  <div class="section-title"><span class="icon">👨‍🎓</span> Evaluaciones a Estudiantes ${banner}</div>
+  ${total===0?'<div class="no-data">Sin evaluaciones programadas.</div>':`
+  <div class="stat-row">
+    <div class="stat-box blue"><div class="val">${total}</div><div class="lbl">Participantes</div></div>
+    <div class="stat-box green"><div class="val">${completos}</div><div class="lbl">Evaluación completa</div></div>
+    <div class="stat-box red"><div class="val">${total-completos}</div><div class="lbl">Con pendientes</div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px"><div class="card-body">${progBar(pct)}</div></div>
+  <div class="section-title" style="font-size:15px"><span class="icon">🔍</span> Detalle por participante</div>
+  ${rows}`}`;
+}
+
+// ── EV PARTICIPANTES ──────────────────────────────────────────────────────────
+function renderEvParticipantes(m, pc, banner) {
+  const ep=m.evPartData;
+  if(!ep){
+    document.getElementById('tab-ev-part').innerHTML=`
+    <div class="section-title"><span class="icon">🎯</span> Evaluación Participantes ${banner}</div>
+    <div class="no-data">Sin datos.</div>`;
+    return;
+  }
+
+  let cards='';
+  [...ep.compSet].sort().forEach((part,i)=>{
+    const pRows=ep.tRows.filter(r=>r['participante']===part);
+    let doms='';
+    pRows.forEach(r=>{
+      const dom=r['Competencias']||'';
+      const comps=['competencia_1','competencia_2','competencia_3','competencia_4']
+        .map(k=>r[k]||'').filter(v=>v&&v!=='No aplica');
+      const nivEst=comps.length&&comps.every(c=>c.includes('4')||c.toLowerCase().includes('desarrollado'));
+      doms+=`<div class="dom-row">
+        <div class="dom-title">${dom}</div>
+        <div class="comp-grid">${comps.map((c,ci)=>`<div><span style="font-size:11px;color:var(--muted)">C${ci+1} </span><span class="comp-pill ${pillColor(c)}">${c}</span></div>`).join('')}</div>
+        <div style="margin-top:4px"><span class="badge ${nivEst?'badge-green':'badge-amber'}">${nivEst?'✅ Nivel establecido':'⚠️ En desarrollo'}</span></div>
+      </div>`;
+    });
+    cards+=`<div class="part-card">
+      <div class="part-header" onclick="toggleEl('pb-${i}')">
+        <span class="part-name">${part}</span>
+        <span class="badge badge-green">✅ Completó</span>
+        <span style="color:var(--muted)">▼</span>
+      </div>
+      <div class="part-body" id="pb-${i}">${doms}</div>
+    </div>`;
+  });
+  [...ep.fOnly].sort().forEach((part,i)=>{
+    cards+=`<div class="part-card">
+      <div class="part-header" onclick="toggleEl('pbf-${i}')">
+        <span class="part-name">${part}</span>
+        <span class="badge badge-red">⚠️ Pendiente</span>
+        <span style="color:var(--muted)">▼</span>
+      </div>
+      <div class="part-body" id="pbf-${i}"><p style="color:var(--red);font-size:13px">Aún no ha completado su evaluación.</p></div>
+    </div>`;
+  });
+
+  document.getElementById('tab-ev-part').innerHTML=`
+  <div class="section-title"><span class="icon">🎯</span> Evaluación Participantes – Ciclo 1+ ${banner}</div>
+  <div class="stat-row">
+    <div class="stat-box blue"><div class="val">${ep.total}</div><div class="lbl">Total</div></div>
+    <div class="stat-box green"><div class="val">${ep.completados}</div><div class="lbl">Completaron</div></div>
+    <div class="stat-box red"><div class="val">${ep.pendientes}</div><div class="lbl">Pendientes</div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px"><div class="card-body">${progBar(ep.pct)}</div></div>
+  ${cards}`;
+}
+
+// ── FECHAS ────────────────────────────────────────────────────────────────────
+function renderFechas(prog, pc, banner) {
+  const fe=DB.FECHAS_ENC.filter(r=>r['PROGRAMA']===prog);
+  const fp=DB.FECHAS_EVPART.filter(r=>r['PROGRAMA']===prog);
+  const makeTable=(rows,cols)=>{
+    if(!rows.length) return '<p class="no-data">Sin fechas registradas.</p>';
+    return `<table class="fechas-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]||''}</td>`).join('')}</tr>`).join('')}
+    </tbody></table>`;
+  };
+  document.getElementById('tab-fechas').innerHTML=`
+  <div class="section-title"><span class="icon">📅</span> Fechas del Programa ${banner}</div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><h2>📋 Fechas de Encuestas</h2></div>
+    <div class="card-body">${makeTable(fe,['Nombre de encuesta','Fecha de apertura','Fecha de cierre'])}</div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h2>🎯 Fechas de Evaluación a Participantes</h2></div>
+    <div class="card-body">${makeTable(fp,['Evaluación','Fecha de apertura','Fecha de cierre'])}</div>
+  </div>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadAll().catch(err=>{
+  document.getElementById('loading-screen').innerHTML=
+    `<div style="color:#ff6b6b;text-align:center;padding:20px"><p style="font-size:16px;margin-bottom:8px">❌ Error cargando datos</p><p style="font-size:13px;opacity:.8">${err.message}</p></div>`;
+});
+</script>
+</body>
+</html>
